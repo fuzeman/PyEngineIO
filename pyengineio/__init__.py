@@ -15,4 +15,6 @@ def attach(app, options=None):
     # normalize path
     path += '/'
 
-    return Middleware(app, server, path)
+    app.wsgi_app = Middleware(app.wsgi_app, server, path)
+
+    return server
