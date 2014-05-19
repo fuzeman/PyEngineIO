@@ -1,4 +1,5 @@
-from gevent.wsgi import WSGIHandler
+from gevent.pywsgi import WSGIHandler
+import time
 import urlparse
 
 
@@ -14,7 +15,17 @@ class EngineIO_Handler(WSGIHandler):
         if path != self.engine.path:
             return super(EngineIO_Handler, self).handle_one_response()
 
-        query = dict(urlparse.parse_qsl(self.environ.get('QUERY_STRING'), keep_blank_values=True))
-        print query
+        # Setup
+        self.time_start = time.time()
+        self.status = None
+        self.headers_sent = False
 
+        self.result = None
+        self.response_use_chunked = False
+        self.response_length = 0
+
+        # Parse query
+        query = dict(urlparse.parse_qsl(self.environ.get('QUERY_STRING'), keep_blank_values=True))
+
+        # Process request
         return self.engine.handle_request(self, query)

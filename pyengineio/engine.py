@@ -37,7 +37,7 @@ class EngineIO(Emitter):
     def verify(self, query):
         pass
 
-    def handle_request(self, handler, query):
+    def handle_request(self, handle, query):
         log.debug('handling request - query: %s', query)
 
         error_code = self.verify(query)
@@ -47,9 +47,9 @@ class EngineIO(Emitter):
 
         if query.get('sid'):
             log.debug('setting new request for existing client')
-            raise NotImplementedError()
+            self.clients[query['sid']].transport.on_request(handle)
         else:
-            self.handshake(handler, query)
+            self.handshake(handle, query)
 
         return self
 

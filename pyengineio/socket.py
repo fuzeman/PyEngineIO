@@ -1,3 +1,4 @@
+from threading import Timer
 from pyemitter import Emitter
 import json
 import logging
@@ -16,6 +17,10 @@ class Socket(Emitter):
         self.write_callbacks = []
         self.response_callbacks = []
 
+        self.check_interval_timer = None
+        self.upgrade_timeout_timer = None
+        self.ping_timeout_timer = None
+
         self.transport = None
         self.set_transport(transport)
 
@@ -31,21 +36,63 @@ class Socket(Emitter):
             'sid': self.sid,
             'upgrades': self.get_available_upgrades(),
 
-            'ping_interval': self.engine.ping_interval,
-            'ping_timeout': self.engine.ping_timeout
+            'pingInterval': self.engine.ping_interval,
+            'pingTimeout': self.engine.ping_timeout
         }))
 
         self.emit('open')
         self.set_ping_timeout()
 
     def on_packet(self, packet):
+        if self.ready_state != 'open':
+            log.debug('packet received with closed socket')
+            return
+
+        self.emit('packet', packet)
+
+        # Reset ping timeout on any packet, incoming data is a good sign of
+        # other side's liveness
+        self.set_ping_timeout()
+
+        p_type = packet.get('type')
+
+        if p_type == 'ping':
+            log.debug('got ping')
+
+            # Respond with pong
+            self.send_packet('pong')
+
+            self.emit('heartbeat')
+            return
+
+        if p_type == 'error':
+            self.on_close('parse error')
+            return
+
+        if p_type == 'message':
+            data = packet.get('data')
+
+            self.emit('data', data)
+            self.emit('message', data)
+            return
+
         raise NotImplementedError()
 
     def on_error(self, error):
-        raise NotImplementedError()
+        log.debug('transport error')
+        self.on_close('transport error', error)
 
     def set_ping_timeout(self):
-        raise NotImplementedError()
+        if self.ping_timeout_timer:
+            self.ping_timeout_timer.cancel()
+
+        def on_ping_timeout():
+            self.on_close('ping timeout')
+
+        timeout = self.engine.ping_interval + self.engine.ping_timeout
+
+        self.ping_timeout_timer = Timer(timeout / 1000, on_ping_timeout)
+        self.ping_timeout_timer.start()
 
     def set_transport(self, transport):
         self.transport = transport
@@ -61,8 +108,11 @@ class Socket(Emitter):
     def clear_transport(self):
         raise NotImplementedError()
 
-    def on_close(self, reason, description):
-        raise NotImplementedError()
+    def on_close(self, reason, description=None):
+        if self.ready_state == 'closed':
+            return
+
+        # TODO properly cleanup and close socket
 
     def setup_send_callback(self):
         raise NotImplementedError()
@@ -71,7 +121,7 @@ class Socket(Emitter):
         self.send_packet('message', data, callback)
         return self
 
-    def send_packet(self, type, data, callback=None):
+    def send_packet(self, type, data=None, callback=None):
         if self.ready_state == 'closing':
             return
 
