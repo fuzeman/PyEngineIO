@@ -117,7 +117,7 @@ class Socket(Emitter):
     def setup_send_callback(self):
         raise NotImplementedError()
 
-    def send(self, data, callback=None):
+    def write(self, data, callback=None):
         self.send_packet('message', data, callback)
         return self
 
