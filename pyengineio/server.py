@@ -5,7 +5,7 @@ from gevent.wsgi import WSGIServer
 
 
 class EngineIO_Server(WSGIServer):
-    def __init__(self, listener, application, options=None, *args, **kwargs):
+    def __init__(self, listener, application, engine, *args, **kwargs):
         if not 'handler_class' in kwargs:
             kwargs['handler_class'] = EngineIO_Handler
 
@@ -14,7 +14,7 @@ class EngineIO_Server(WSGIServer):
             *args, **kwargs
         )
 
-        self.engine = EngineIO(options)
+        self.engine = engine
 
     def handle(self, socket, address):
         handler = self.handler_class(self.engine, socket, address, self)
