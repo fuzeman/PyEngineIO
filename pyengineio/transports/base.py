@@ -11,7 +11,7 @@ class Transport(Emitter):
         self.should_close = None
         self.writable = False
 
-        self.supports_binary = None
+        self.supports_binary = True
 
         self.sid = None
 
@@ -28,7 +28,10 @@ class Transport(Emitter):
         self.emit('packet', packet)
 
     def on_data(self, data):
-        self.on_packet(parser.decode_packet(data))
+        def decoded_packet(packet, index, count):
+            self.on_packet(packet)
+
+        parser.decode_payload(data, decoded_packet)
 
     def on_close(self):
         raise NotImplementedError()

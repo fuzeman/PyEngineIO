@@ -60,16 +60,15 @@ class Polling(Transport):
 
         self.data_handle = handle
 
-        is_binary = handle.headers['content-type'] == 'application/octet-stream'
         content_length = handle.headers['content-length']
 
         # Read data from input stream
         stream = handle.environ.get('wsgi.input')
 
-        # TODO where are these 3 bytes coming from?
-        ch = stream.read(3)
-
         data = stream.read(content_length)
+
+        if handle.headers['content-type'] == 'application/octet-stream':
+            data = bytearray(data)
 
         # Write response
         self.data_handle.start_response('200 OK', [
@@ -83,6 +82,8 @@ class Polling(Transport):
         self.data_handle.write('ok')
 
         # Received data from client
+        log.debug('received %s', repr(data))
+
         self.on_data(data)
 
         # Cleanup
@@ -99,7 +100,7 @@ class Polling(Transport):
         parser.encode_payload(packets, lambda data: self.write(data), self.supports_binary)
 
     def write(self, data):
-        log.debug('writing "%s" - writable: %s', data, self.writable)
+        log.debug('writing %s', repr(data))
         self.do_write(data)
 
         # Cleanup
