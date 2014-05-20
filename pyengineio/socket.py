@@ -103,6 +103,11 @@ class Socket(Emitter):
                  .on('drain', lambda: self.flush())
 
     def maybe_upgrade(self, transport):
+        log.debug(
+            'might upgrade socket transport from "%s" to "%s"',
+            self.transport.name, transport.name
+        )
+
         raise NotImplementedError()
 
     def clear_transport(self):

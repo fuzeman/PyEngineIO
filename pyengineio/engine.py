@@ -1,5 +1,6 @@
+from pyengineio.errors import Errors
 from pyengineio.socket import Socket
-from pyengineio.transports.polling_xhr import XHR_Polling
+from pyengineio.transports import TRANSPORTS
 from pyengineio.util import generate_id
 
 from pyemitter import Emitter
@@ -9,25 +10,8 @@ import logging
 log = logging.getLogger(__name__)
 
 
-class Errors(object):
-    UNKNOWN_TRANSPORT = 0
-    UNKNOWN_SID = 1
-
-    BAD_HANDSHAKE_METHOD = 2
-    BAD_REQUEST = 3
-
-    MESSAGES = {
-        UNKNOWN_TRANSPORT: 'Transport unknown',
-        UNKNOWN_SID: 'Session ID unknown',
-        BAD_HANDSHAKE_METHOD: 'Bad handshake method',
-        BAD_REQUEST: 'Bad request'
-    }
-
-
-class EngineIO(Emitter):
-    transports = {
-        'polling-xhr': XHR_Polling
-    }
+class Engine(Emitter):
+    transports = TRANSPORTS
 
     def __init__(self, options=None):
         if options is None:
@@ -79,19 +63,22 @@ class EngineIO(Emitter):
 
         method = handle.environ.get('REQUEST_METHOD')
 
+        # Verify request
         error_code = self.verify(method, query, False)
 
         if error_code is not None:
             self.send_error(handle, error_code)
             return self
 
-        if query.get('sid'):
-            log.debug('setting new request for existing client')
-            self.clients[query['sid']].transport.on_request(handle, method)
-        else:
-            self.handshake(handle, query)
+        # Handle request
+        sid = query.get('sid')
 
-        return self
+        if not sid:
+            # Handshake new client
+            return self.handshake(handle, query)
+
+        log.debug('setting new request for existing client')
+        self.clients[sid].transport.on_request(handle, method)
 
     @staticmethod
     def get_transport_name(query):
@@ -143,6 +130,56 @@ class EngineIO(Emitter):
             self.clients_count -= 1
 
         self.emit('connection', socket)
+
+    def handle_upgrade(self, handle, query):
+        log.debug('handling upgrade - query: %s', query)
+
+        method = handle.environ.get('REQUEST_METHOD')
+
+        # Verify request
+        error_code = self.verify(method, query, True)
+
+        if error_code is not None:
+            # TODO socket.end();
+            return self
+
+        # Handle upgrade request
+        transport = self.get_transport(query)
+
+        if not transport.supports_upgrades:
+            log.debug('transport doesnt support upgrading')
+            # TODO socket.close()
+            return
+
+        sid = query.get('sid')
+
+        if not sid:
+            # Handshake new client
+            return self.handshake(handle, query)
+
+        # Verify upgrade request
+        if sid not in self.clients:
+            log.debug('upgrade attempt for closed client')
+            # TODO socket.close();
+            return
+
+        if self.clients[sid].upgraded:
+            log.debug('transport has already been upgraded')
+            # TODO socket.close();
+            return
+
+        # Upgrade transport
+        log.debug('upgrading existing transport')
+        transport = transport()
+
+        # Set binary mode
+        if query.get('b64'):
+            transport.supports_binary = False
+        else:
+            transport.supports_binary = True
+
+        # Start upgrade
+        self.clients[sid].maybe_upgrade(transport)
 
     @staticmethod
     def send_error(handle, code):

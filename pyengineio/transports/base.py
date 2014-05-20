@@ -5,7 +5,9 @@ from pyemitter import Emitter
 
 class Transport(Emitter):
     name = None
+    upgrades_to = []
     supports_framing = False
+    supports_upgrades = False
 
     def __init__(self):
         self.ready_state = 'opening'

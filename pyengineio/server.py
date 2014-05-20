@@ -1,14 +1,14 @@
-from pyengineio.handler import EngineIO_Handler
+from pyengineio.handler import Handler
 
 from gevent.wsgi import WSGIServer
 
 
-class EngineIO_Server(WSGIServer):
+class Server(WSGIServer):
     def __init__(self, listener, application, engine, *args, **kwargs):
         if not 'handler_class' in kwargs:
-            kwargs['handler_class'] = EngineIO_Handler
+            kwargs['handler_class'] = Handler
 
-        super(EngineIO_Server, self).__init__(
+        super(Server, self).__init__(
             listener, application,
             *args, **kwargs
         )

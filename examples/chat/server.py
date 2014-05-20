@@ -1,5 +1,4 @@
-from pyengineio.engine import EngineIO
-from pyengineio.server import EngineIO_Server
+from pyengineio import Engine, Server
 
 from flask import Flask
 import logging
@@ -8,7 +7,7 @@ import time
 logging.basicConfig(level=logging.DEBUG)
 
 app = Flask(__name__)
-eio = EngineIO()
+eio = Engine()
 
 
 @app.route('/')
@@ -22,11 +21,11 @@ def on_connection(socket):
 
     @socket.on('message')
     def on_message(message):
-        print 'on_message'
-        time.sleep(2)
+        print 'on_message', message
 
+        #time.sleep(2)
         socket.write(message)
 
 if __name__ == '__main__':
-    server = EngineIO_Server(('', 5000), app, eio)
+    server = Server(('', 5000), app, eio)
     server.serve_forever()
