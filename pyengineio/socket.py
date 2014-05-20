@@ -108,10 +108,44 @@ class Socket(Emitter):
             self.transport.name, transport.name
         )
 
-        raise NotImplementedError()
+        # TODO upgrade timeout
+
+        @transport.on('packet')
+        def on_packet(packet):
+            p_type = packet.get('type')
+            p_data = packet.get('data')
+
+            if p_type == 'ping' and p_data == 'probe':
+                transport.send([{'type': 'pong', 'data': 'probe'}])
+                # TODO clearInterval(self.checkIntervalTimer);
+                # TODO self.checkIntervalTimer = setInterval(check, 100);
+            elif p_type == 'upgrade' and self.ready_state == 'open':
+                log.debug('got upgrade packet - upgrading')
+                self.upgraded = True
+
+                self.clear_transport()
+
+                self.set_transport(transport)
+                self.emit('upgrade', transport)
+
+                self.set_ping_timeout()
+                self.flush()
+
+                # TODO clearInterval(self.checkIntervalTimer);
+                # TODO self.checkIntervalTimer = null;
+                # TODO clearTimeout(self.upgradeTimeoutTimer);
+                transport.off('packet', on_packet)
+            else:
+                transport.close()
 
     def clear_transport(self):
-        raise NotImplementedError()
+        # silence further transport errors and prevent uncaught exceptions
+        self.transport.off('error')
+
+        self.ping_timeout_timer.cancel()
+        self.ping_timeout_timer = None
+
+        # TODO clearTimeout(this.pingIntervalTimer); ?
 
     def on_close(self, reason, description=None):
         if self.ready_state == 'closed':

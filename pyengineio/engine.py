@@ -105,7 +105,7 @@ class Engine(Emitter):
         log.debug('handshaking client "%s"', sid)
 
         try:
-            transport = self.get_transport(query)()
+            transport = self.get_transport(query)(handle)
 
             # if transport_name == 'polling':
             #     transport.max_http_buffer_size = self.max_http_buffer_size
@@ -170,7 +170,7 @@ class Engine(Emitter):
 
         # Upgrade transport
         log.debug('upgrading existing transport')
-        transport = transport()
+        transport = transport(handle)
 
         # Set binary mode
         if query.get('b64'):
@@ -180,6 +180,8 @@ class Engine(Emitter):
 
         # Start upgrade
         self.clients[sid].maybe_upgrade(transport)
+
+        transport.on_request(handle, method)
 
     @staticmethod
     def send_error(handle, code):

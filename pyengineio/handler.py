@@ -1,10 +1,15 @@
 from gevent.pywsgi import WSGIHandler
+from geventwebsocket.handler import WebSocketHandler
+import logging
 import time
 import urlparse
-from geventwebsocket.handler import WebSocketHandler
+
+log = logging.getLogger(__name__)
 
 
 class Handler(WSGIHandler):
+    logger = log
+
     def __init__(self, engine, *args, **kwargs):
         super(Handler, self).__init__(*args, **kwargs)
 

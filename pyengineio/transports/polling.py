@@ -10,8 +10,8 @@ class Polling(Transport):
     name = 'polling'
     upgrades_to = ['websocket', 'flashsocket']
 
-    def __init__(self):
-        super(Polling, self).__init__()
+    def __init__(self, handle):
+        super(Polling, self).__init__(handle)
 
         self.poll_handle = None
         self.data_handle = None
@@ -89,6 +89,12 @@ class Polling(Transport):
 
         # Cleanup
         self.data_handle = None
+
+    def on_data(self, data):
+        def decoded_packet(packet, index, count):
+            self.on_packet(packet)
+
+        parser.decode_payload(data, decoded_packet)
 
     def send(self, packets):
         if self.should_close:

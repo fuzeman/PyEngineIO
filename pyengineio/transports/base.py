@@ -9,7 +9,7 @@ class Transport(Emitter):
     supports_framing = False
     supports_upgrades = False
 
-    def __init__(self):
+    def __init__(self, handle):
         self.ready_state = 'opening'
         self.should_close = None
         self.writable = False
@@ -31,10 +31,10 @@ class Transport(Emitter):
         self.emit('packet', packet)
 
     def on_data(self, data):
-        def decoded_packet(packet, index, count):
-            self.on_packet(packet)
+        self.on_packet(parser.decode_packet(data))
 
-        parser.decode_payload(data, decoded_packet)
+    def send(self, packets):
+        raise NotImplementedError()
 
     def on_close(self):
         raise NotImplementedError()
