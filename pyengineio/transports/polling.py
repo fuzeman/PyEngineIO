@@ -1,6 +1,6 @@
 from pyengineio.transports.base import Transport
-
 import pyengineio_parser as parser
+
 import logging
 
 log = logging.getLogger(__name__)
@@ -16,8 +16,9 @@ class Polling(Transport):
         self.poll_handle = None
         self.data_handle = None
 
-    def on_request(self, handle):
-        method = handle.environ.get('REQUEST_METHOD')
+    def on_request(self, handle, method=None):
+        if method is None:
+            method = handle.environ.get('REQUEST_METHOD')
 
         if method == 'GET':
             self.on_poll_request(handle)

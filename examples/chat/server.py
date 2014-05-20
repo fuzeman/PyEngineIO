@@ -1,6 +1,7 @@
-from flask import Flask
 from pyengineio.engine import EngineIO
 from pyengineio.server import EngineIO_Server
+
+from flask import Flask
 import logging
 import time
 
@@ -9,9 +10,11 @@ logging.basicConfig(level=logging.DEBUG)
 app = Flask(__name__)
 eio = EngineIO()
 
+
 @app.route('/')
 def index():
     return 'index'
+
 
 @eio.on('connection')
 def on_connection(socket):

@@ -1,4 +1,3 @@
-from pyengineio.engine import EngineIO
 from pyengineio.handler import EngineIO_Handler
 
 from gevent.wsgi import WSGIServer

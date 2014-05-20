@@ -1,5 +1,5 @@
-from threading import Timer
 from pyemitter import Emitter
+from threading import Timer
 import json
 import logging
 

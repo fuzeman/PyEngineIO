@@ -1,5 +1,6 @@
-from pyemitter import Emitter
 import pyengineio_parser as parser
+
+from pyemitter import Emitter
 
 
 class Transport(Emitter):
@@ -15,7 +16,7 @@ class Transport(Emitter):
 
         self.sid = None
 
-    def on_request(self, handle):
+    def on_request(self, handle, method=None):
         raise NotImplementedError()
 
     def close(self, callback=None):
