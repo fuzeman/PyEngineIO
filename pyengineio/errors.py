@@ -5,9 +5,12 @@ class Errors(object):
     BAD_HANDSHAKE_METHOD = 2
     BAD_REQUEST = 3
 
+    REFUSED_HANDSHAKE = 4
+
     MESSAGES = {
         UNKNOWN_TRANSPORT: 'Transport unknown',
         UNKNOWN_SID: 'Session ID unknown',
         BAD_HANDSHAKE_METHOD: 'Bad handshake method',
-        BAD_REQUEST: 'Bad request'
+        BAD_REQUEST: 'Bad request',
+        REFUSED_HANDSHAKE: 'Handshake refused'
     }

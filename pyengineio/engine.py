@@ -32,6 +32,7 @@ class Engine(Emitter):
         self.ping_interval = options.get('ping_interval', 25000)
 
         self.allow_upgrades = options.get('allow_upgrades', True)
+        self.allow_request = options.get('allow_request')
 
     def upgrades(self, transport):
         """Returns a list of available transports for upgrade given a certain transport.
@@ -46,7 +47,7 @@ class Engine(Emitter):
 
         return self.transports[transport].upgrades_to or []
 
-    def verify(self, method, query, upgrade):
+    def verify(self, handle, method, query, upgrade):
         """Verifies a request.
 
         :param method: HTTP request method
@@ -66,23 +67,26 @@ class Engine(Emitter):
 
         if transport not in self.transports:
             log.debug('unknown transport "%s"', transport)
-            return Errors.UNKNOWN_TRANSPORT
+            return False, Errors.UNKNOWN_TRANSPORT
 
         # sid check
         sid = query.get('sid')
 
         if sid is not None:
             if sid not in self.clients:
-                return Errors.UNKNOWN_SID
+                return False, Errors.UNKNOWN_SID
 
             if not upgrade and self.clients[sid].transport.name != transport:
                 log.debug('bad request: unexpected transport without upgrade')
-                return Errors.BAD_REQUEST
+                return False, Errors.BAD_REQUEST
         else:
             if method != 'GET':
-                return Errors.BAD_HANDSHAKE_METHOD
+                return False, Errors.BAD_HANDSHAKE_METHOD
 
-        return None
+            if self.allow_request and not self.allow_request(handle, method, query, upgrade):
+                return False, Errors.REFUSED_HANDSHAKE
+
+        return True, None
 
     def close(self):
         """Closes all clients."""
@@ -107,10 +111,10 @@ class Engine(Emitter):
         method = handle.environ.get('REQUEST_METHOD')
 
         # Verify request
-        error_code = self.verify(method, query, False)
+        success, error = self.verify(handle, method, query, False)
 
-        if error_code is not None:
-            self.send_error(handle, error_code)
+        if not success:
+            self.send_error(handle, error)
             return self
 
         # Handle request
@@ -197,9 +201,9 @@ class Engine(Emitter):
         method = handle.environ.get('REQUEST_METHOD')
 
         # Verify request
-        error_code = self.verify(method, query, True)
+        success, error = self.verify(handle, method, query, True)
 
-        if error_code is not None:
+        if not success:
             # TODO socket.end();
             return self
 
