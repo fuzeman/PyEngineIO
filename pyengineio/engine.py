@@ -14,6 +14,11 @@ class Engine(Emitter):
     transports = TRANSPORTS
 
     def __init__(self, options=None):
+        """Engine constructor.
+
+        :param options: Engine configuration options
+        :type options: dict
+        """
         if options is None:
             options = {}
 
@@ -29,12 +34,33 @@ class Engine(Emitter):
         self.allow_upgrades = options.get('allow_upgrades', True)
 
     def upgrades(self, transport):
+        """Returns a list of available transports for upgrade given a certain transport.
+
+        :param transport: Transport name
+        :type transport: str
+
+        :rtype: list of str
+        """
         if not self.allow_upgrades:
             return []
 
         return self.transports[transport].upgrades_to or []
 
     def verify(self, method, query, upgrade):
+        """Verifies a request.
+
+        :param method: HTTP request method
+        :type method: str
+
+        :param query: HTTP request query
+        :type query: dict
+
+        :param upgrade: Is this an upgrade request?
+        :type upgrade: bool
+
+        :return: Is the request valid?
+        :rtype: bool
+        """
         # transport check
         transport = self.get_transport_name(query)
 
@@ -58,7 +84,24 @@ class Engine(Emitter):
 
         return None
 
+    def close(self):
+        """Closes all clients."""
+        log.debug('closing all open clients')
+
+        for client in self.clients:
+            client.close()
+
+        return self
+
     def handle_request(self, handle, query):
+        """Handles a WSGI request
+
+        :param handle: WSGI request handler
+        :type handle: pyengineio.handler.Handler
+
+        :param query: HTTP request query
+        :type query: dict
+        """
         log.debug('handling request - query: %s', query)
 
         method = handle.environ.get('REQUEST_METHOD')
@@ -81,25 +124,34 @@ class Engine(Emitter):
         self.clients[sid].transport.on_request(handle, method)
 
     @staticmethod
-    def get_transport_name(query):
-        if not query or 'transport' not in query:
-            return None
+    def send_error(handle, code):
+        """Returns an error for an HTTP request
 
-        name = query['transport']
+        :param handle: WSGI request handler
+        :type handle: pyengineio.handler.Handler
 
-        if name != 'polling':
-            return name
+        :param code: Error code
+        :type code: int
+        """
+        handle.start_response('400 Bad Request', [
+            ('Content-Type', 'application/json'),
+            ('Connection', 'close')
+        ])
 
-        if 'j' in query:
-            return 'polling-jsonp'
-
-        return 'polling-xhr'
-
-    def get_transport(self, query):
-        name = self.get_transport_name(query)
-        return self.transports.get(name)
+        handle.write(json.dumps({
+            'code': code,
+            'message': Errors.MESSAGES.get(code)
+        }))
 
     def handshake(self, handle, query):
+        """Handshakes a new client.
+
+        :param handle: WSGI request handler
+        :type handle: pyengineio.handler.Handler
+
+        :param query: HTTP request query
+        :type query: dict
+        """
         sid = generate_id()
 
         log.debug('handshaking client "%s"', sid)
@@ -132,6 +184,14 @@ class Engine(Emitter):
         self.emit('connection', socket)
 
     def handle_upgrade(self, handle, query):
+        """Handles a client upgrade request
+
+        :param handle: WSGI request handler
+        :type handle: pyengineio.handler.Handler
+
+        :param query: HTTP request query
+        :type query: dict
+        """
         log.debug('handling upgrade - query: %s', query)
 
         method = handle.environ.get('REQUEST_METHOD')
@@ -184,13 +244,37 @@ class Engine(Emitter):
         transport.on_request(handle, method)
 
     @staticmethod
-    def send_error(handle, code):
-        handle.start_response('400 Bad Request', [
-            ('Content-Type', 'application/json'),
-            ('Connection', 'close')
-        ])
+    def get_transport_name(query):
+        """Determine transport name from query
 
-        handle.write(json.dumps({
-            'code': code,
-            'message': Errors.MESSAGES.get(code)
-        }))
+        :param query: HTTP request query
+        :type query: dict
+
+        :return: Transport name
+        :rtype: str
+        """
+        if not query or 'transport' not in query:
+            return None
+
+        name = query['transport']
+
+        if name != 'polling':
+            return name
+
+        if 'j' in query:
+            return 'polling-jsonp'
+
+        return 'polling-xhr'
+
+    def get_transport(self, query):
+        """Determine transport class from query
+
+        :param query: HTTP request query
+        :type query: dict
+
+        :return: Transport class
+        :rtype: class
+        """
+        return self.transports.get(
+            self.get_transport_name(query)
+        )

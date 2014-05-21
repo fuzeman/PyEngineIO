@@ -1,7 +1,7 @@
-from geventwebsocket import WebSocketError
 from pyengineio.transports.base import Transport
 import pyengineio_parser as parser
 
+from geventwebsocket import WebSocketError
 import gevent
 import logging
 

@@ -10,6 +10,11 @@ class Transport(Emitter):
     supports_upgrades = False
 
     def __init__(self, handle):
+        """Transport constructor.
+
+        :param handle: WSGI request handler
+        :type handle: pyengineio.handler.Handler
+        """
         self.ready_state = 'opening'
         self.should_close = None
         self.writable = False
@@ -19,22 +24,52 @@ class Transport(Emitter):
         self.sid = None
 
     def on_request(self, handle, method=None):
+        """Called with incoming HTTP request.
+
+        :param handle: WSGI request handler
+        :type handle: pyengineio.handler.Handler
+
+        :param method: HTTP request method
+        :type method: str
+        """
         raise NotImplementedError()
 
     def close(self, callback=None):
+        """Closes the transport."""
         raise NotImplementedError()
 
     def on_error(self, message, description=None):
+        """Called with a transport error.
+
+        :param message: Error message
+        :type message: str
+
+        :param description: Error description
+        :type description: str
+        """
         self.emit('error', Exception(message, description))
 
     def on_packet(self, packet):
+        """Called with parsed out a packets from the data stream.
+
+        :type packet: dict
+        """
         self.emit('packet', packet)
 
     def on_data(self, data):
+        """Called with the encoded packet data.
+
+        :type data: str
+        """
         self.on_packet(parser.decode_packet(data))
 
     def send(self, packets):
+        """Writes a packet payload.
+
+        :type packets: list of dict
+        """
         raise NotImplementedError()
 
     def on_close(self):
+        """Called upon transport close."""
         raise NotImplementedError()
