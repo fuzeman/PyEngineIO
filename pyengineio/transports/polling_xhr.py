@@ -5,6 +5,10 @@ class XHR_Polling(Polling):
     name = 'polling-xhr'
 
     def do_write(self, data):
+        if self.poll_handle is None:
+            log.warn('invalid handle')
+            return
+
         content_type = 'application/octet-stream'
 
         if not self.supports_binary:
@@ -15,5 +19,9 @@ class XHR_Polling(Polling):
             ('Content-Length', len(data)),
             ('Connection', 'close')
         ])
+
+        if 'socket' not in self.poll_handle.__dict__:
+            log.warn('handle closed')
+            return
 
         self.poll_handle.write(data)

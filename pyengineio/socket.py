@@ -93,7 +93,7 @@ class Socket(Emitter):
             self.emit('message', data)
             return
 
-        raise NotImplementedError()
+        log.warn('Received unknown packet with type "%s"', p_type)
 
     def on_error(self, error):
         """Called upon transport error."""
@@ -166,6 +166,8 @@ class Socket(Emitter):
                 transport.off('packet', on_packet)
             else:
                 transport.close()
+
+        self.transport.send([{'type': 'close'}])
 
     def clear_transport(self):
         """Clears listeners and timers associated with current transport."""

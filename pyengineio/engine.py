@@ -137,6 +137,10 @@ class Engine(Emitter):
         :param code: Error code
         :type code: int
         """
+        if handle is None:
+            log.warn('invalid handle')
+            return
+
         handle.start_response('400 Bad Request', [
             ('Content-Type', 'application/json'),
             ('Connection', 'close')
