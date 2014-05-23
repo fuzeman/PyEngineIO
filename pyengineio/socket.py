@@ -65,6 +65,8 @@ class Socket(Emitter):
             log.debug('packet received with closed socket')
             return
 
+        log.debug('Received via "%s" transport - packet: %s', self.transport.name, packet)
+
         self.emit('packet', packet)
 
         # Reset ping timeout on any packet, incoming data is a good sign of
@@ -259,6 +261,8 @@ class Socket(Emitter):
             self.write_callbacks.extend(self.write_callbacks)
 
         self.write_callbacks = []
+
+        log.debug('Sending via "%s" transport - packets: %s', self.transport.name, wbuf)
         self.transport.send(wbuf)
 
         self.emit('drain')

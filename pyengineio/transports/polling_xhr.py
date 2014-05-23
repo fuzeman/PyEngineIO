@@ -1,12 +1,15 @@
 from pyengineio.transports.polling import Polling
 
+import logging
+
+log = logging.getLogger(__name__)
+
 
 class XHR_Polling(Polling):
     name = 'polling-xhr'
 
     def do_write(self, data):
         if self.poll_handle is None:
-            log.warn('invalid handle')
             return
 
         content_type = 'application/octet-stream'
@@ -21,7 +24,6 @@ class XHR_Polling(Polling):
         ])
 
         if 'socket' not in self.poll_handle.__dict__:
-            log.warn('handle closed')
             return
 
         self.poll_handle.write(data)

@@ -127,6 +127,8 @@ class Engine(Emitter):
         log.debug('setting new request for existing client')
         self.clients[sid].transport.on_request(handle, method)
 
+        handle.log_request()
+
     @staticmethod
     def send_error(handle, code):
         """Returns an error for an HTTP request

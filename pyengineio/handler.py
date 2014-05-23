@@ -18,6 +18,8 @@ class Handler(WSGIHandler):
     def initialize(self):
         # Setup
         self.time_start = time.time()
+
+        self.code = None
         self.status = None
         self.headers_sent = False
 
@@ -47,7 +49,6 @@ class Handler(WSGIHandler):
             return self.engine.handle_request(self, query)
         except Exception, ex:
             log.error(ex)
-            raise ex
 
     def handle_websocket(self, query):
         # In case this is WebSocket request, switch to the WebSocketHandler

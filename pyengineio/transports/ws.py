@@ -34,7 +34,6 @@ class WebSocket(Transport):
             if data is None:
                 break
 
-            log.debug('received: %s', repr(data))
             self.on_data(data)
 
     def send(self, packets):
@@ -42,7 +41,6 @@ class WebSocket(Transport):
             parser.encode_packet(packet, self.write, self.supports_binary)
 
     def write(self, data):
-        log.debug('writing %s', repr(data))
         self.writable = False
 
         try:

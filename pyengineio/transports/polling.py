@@ -25,7 +25,7 @@ class Polling(Transport):
         elif method == 'POST':
             self.on_data_request(handle)
         else:
-            raise NotImplementedError()
+            log.warn('Unknown polling request')
 
     def on_poll_request(self, handle):
         if self.poll_handle:
@@ -36,8 +36,6 @@ class Polling(Transport):
             ])
             return
 
-        log.debug('setting handle')
-
         self.poll_handle = handle
 
         # TODO onClose, cleanup
@@ -46,7 +44,7 @@ class Polling(Transport):
         self.emit('drain')
 
         # if we're still writable but had a pending close, trigger an empty send
-        if self.writable and self.should_close:
+        if self.writable:
             log.debug('triggering empty send to append close packet')
             self.send([{'type': 'noop'}])
 
@@ -83,8 +81,6 @@ class Polling(Transport):
         self.data_handle.write('ok')
 
         # Received data from client
-        log.debug('received %s', repr(data))
-
         self.on_data(data)
 
         # Cleanup
@@ -107,7 +103,6 @@ class Polling(Transport):
         parser.encode_payload(packets, lambda data: self.write(data), self.supports_binary)
 
     def write(self, data):
-        log.debug('writing %s', repr(data))
         self.do_write(data)
 
         # Cleanup
