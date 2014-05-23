@@ -185,7 +185,15 @@ class Socket(Emitter):
         if self.ready_state == 'closed':
             return
 
-        # TODO properly cleanup and close socket
+        self.clear_transport()
+
+        # reset buffers
+        self.write_buffer = []
+        self.write_callbacks = []
+        self.response_callbacks = []
+
+        self.ready_state = 'closed'
+        self.emit('close', reason, description)
 
     def setup_send_callback(self):
         """Setup and manage send callback"""

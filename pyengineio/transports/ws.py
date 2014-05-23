@@ -4,6 +4,7 @@ import pyengineio_parser as parser
 from geventwebsocket import WebSocketError
 import gevent
 import logging
+import socket
 
 log = logging.getLogger(__name__)
 
@@ -17,6 +18,8 @@ class WebSocket(Transport):
         super(WebSocket, self).__init__(handle)
 
         self.socket = handle.environ.get('wsgi.websocket')
+        self.socket.current_app.on_close = lambda *args: self.on_close()
+
         self.writable = True
 
         self.receive_job = gevent.spawn(self.receive)
@@ -28,6 +31,8 @@ class WebSocket(Transport):
         while not self.socket.closed:
             try:
                 data = self.socket.read_message()
+            except socket.error, ex:
+                return self.on_close(*ex)
             except Exception, ex:
                 return self.emit('error', 'read error %s' % ex)
 

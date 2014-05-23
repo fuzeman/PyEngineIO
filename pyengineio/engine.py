@@ -187,7 +187,7 @@ class Engine(Emitter):
         self.clients_count += 1
 
         @socket.once('close')
-        def on_close():
+        def on_close(reason, description=None):
             del self.clients[sid]
             self.clients_count -= 1
 

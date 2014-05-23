@@ -70,6 +70,7 @@ class Transport(Emitter):
         """
         raise NotImplementedError()
 
-    def on_close(self):
+    def on_close(self, reason, description=None):
         """Called upon transport close."""
-        raise NotImplementedError()
+        self.ready_state = 'closed'
+        self.emit('close', reason, description)

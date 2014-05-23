@@ -88,6 +88,10 @@ class Polling(Transport):
 
     def on_data(self, data):
         def decoded_packet(packet, index, count):
+            if packet.get('type') == 'close':
+                self.on_close('received "close" packet')
+                return
+
             self.on_packet(packet)
 
         parser.decode_payload(data, decoded_packet)
