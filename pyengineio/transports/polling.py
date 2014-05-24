@@ -1,6 +1,8 @@
 from pyengineio.transports.base import Transport
 import pyengineio_parser as parser
 
+from gevent.event import Event
+import gevent
 import logging
 
 log = logging.getLogger(__name__)
@@ -14,6 +16,8 @@ class Polling(Transport):
         super(Polling, self).__init__(handle, query)
 
         self.poll_handle = None
+        self.poll_lock = None
+
         self.data_handle = None
 
     def on_request(self, handle, query, method=None):
@@ -37,16 +41,18 @@ class Polling(Transport):
             return
 
         self.poll_handle = handle
-
-        # TODO onClose, cleanup
+        self.poll_lock = Event()
 
         self.writable = True
         self.emit('drain')
 
         # if we're still writable but had a pending close, trigger an empty send
-        if self.writable:
+        if self.writable and self.should_close:
             log.debug('triggering empty send to append close packet')
             self.send([{'type': 'noop'}])
+
+        # Wait until we are ready to send something
+        gevent.wait([self.poll_lock])
 
     def on_data_request(self, handle):
         if self.data_handle:
@@ -111,6 +117,8 @@ class Polling(Transport):
 
         # Cleanup
         self.poll_handle = None
+        self.poll_lock.set()
+
         self.writable = False
 
     def do_write(self, data):

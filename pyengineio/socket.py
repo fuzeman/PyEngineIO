@@ -141,6 +141,13 @@ class Socket(Emitter):
 
         # TODO upgrade timeout
 
+        def polling_close():
+            if self.transport.name != 'polling' or not self.transport.writable:
+                return
+
+            log.debug('writing a noop packet to polling transport for fast upgrade')
+            self.transport.send([{'type': 'noop'}])
+
         @transport.on('packet')
         def on_packet(packet):
             p_type = packet.get('type')
@@ -148,8 +155,7 @@ class Socket(Emitter):
 
             if p_type == 'ping' and p_data == 'probe':
                 transport.send([{'type': 'pong', 'data': 'probe'}])
-                # TODO clearInterval(self.checkIntervalTimer);
-                # TODO self.checkIntervalTimer = setInterval(check, 100);
+                polling_close()
             elif p_type == 'upgrade' and self.ready_state == 'open':
                 log.debug('got upgrade packet - upgrading')
                 self.upgraded = True
@@ -162,14 +168,10 @@ class Socket(Emitter):
                 self.set_ping_timeout()
                 self.flush()
 
-                # TODO clearInterval(self.checkIntervalTimer);
-                # TODO self.checkIntervalTimer = null;
                 # TODO clearTimeout(self.upgradeTimeoutTimer);
                 transport.off('packet', on_packet)
             else:
                 transport.close()
-
-        self.transport.send([{'type': 'close'}])
 
     def clear_transport(self):
         """Clears listeners and timers associated with current transport."""
@@ -177,8 +179,6 @@ class Socket(Emitter):
 
         self.ping_timeout_timer.cancel()
         self.ping_timeout_timer = None
-
-        # TODO clearTimeout(this.pingIntervalTimer); ?
 
     def on_close(self, reason, description=None):
         """Called upon transport considered closed."""

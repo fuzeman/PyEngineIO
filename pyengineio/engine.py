@@ -207,7 +207,7 @@ class Engine(Emitter):
         success, error = self.verify(handle, method, query, True)
 
         if not success:
-            # TODO socket.end();
+            self.send_error(handle, error)
             return self
 
         # Handle upgrade request
@@ -215,7 +215,7 @@ class Engine(Emitter):
 
         if not transport.supports_upgrades:
             log.debug('transport doesnt support upgrading')
-            # TODO socket.close()
+            self.send_error(handle, Errors.UNSUPPORTED_UPGRADE)
             return
 
         sid = query.get('sid')
@@ -227,12 +227,11 @@ class Engine(Emitter):
         # Verify upgrade request
         if sid not in self.clients:
             log.debug('upgrade attempt for closed client')
-            # TODO socket.close();
             return
 
         if self.clients[sid].upgraded:
             log.debug('transport has already been upgraded')
-            # TODO socket.close();
+            self.send_error(handle, Errors.ALREADY_UPGRADED)
             return
 
         # Upgrade transport
