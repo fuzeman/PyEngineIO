@@ -1,5 +1,6 @@
 from pyemitter import Emitter
 from threading import Timer
+import gevent
 import json
 import logging
 
@@ -149,10 +150,17 @@ class Socket(Emitter):
         upgrade_timer.start()
 
         def polling_close():
-            if self.transport.name != 'polling' or not self.transport.writable:
+            gevent.sleep(0.1)
+
+            if not self.transport.name.startswith('polling-'):
+                log.debug('not a polling transport')
                 return
 
-            log.debug('writing a noop packet to polling transport for fast upgrade')
+            if not self.transport.writable:
+                log.debug('transport already closed')
+                return
+
+            log.debug('writing a "noop" packet to polling transport for fast upgrade')
             self.transport.send([{'type': 'noop'}])
 
         @transport.on('packet')
@@ -161,8 +169,9 @@ class Socket(Emitter):
             p_data = packet.get('data')
 
             if p_type == 'ping' and p_data == 'probe':
+                log.debug('got probe packet - sending pong')
                 transport.send([{'type': 'pong', 'data': 'probe'}])
-                polling_close()
+                gevent.spawn(polling_close)
             elif p_type == 'upgrade' and self.ready_state == 'open':
                 log.debug('got upgrade packet - upgrading')
                 self.upgraded = True
@@ -235,8 +244,6 @@ class Socket(Emitter):
         """
         if self.ready_state == 'closing':
             return
-
-        log.debug('sending packet "%s" (%s)', type, data)
 
         packet = {'type': type}
 

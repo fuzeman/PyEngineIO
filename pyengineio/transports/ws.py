@@ -43,6 +43,8 @@ class WebSocket(Transport):
             self.on_data(data)
 
     def send(self, packets):
+        log.debug('sending packets: %s', packets)
+
         for packet in packets:
             parser.encode_packet(packet, self.write, self.supports_binary)
 

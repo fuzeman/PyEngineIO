@@ -105,6 +105,8 @@ class Polling(Transport):
         parser.decode_payload(data, decoded_packet)
 
     def send(self, packets):
+        log.debug('sending packets: %s', packets)
+
         if self.should_close:
             log.debug('appending close packet to payload')
             packets.append({'type': 'close'})
