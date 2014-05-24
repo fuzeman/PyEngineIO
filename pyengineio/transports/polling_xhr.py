@@ -12,6 +12,9 @@ class XHR_Polling(Polling):
         if self.poll_handle is None:
             return
 
+        if 'socket' not in self.poll_handle.__dict__:
+            return
+
         content_type = 'application/octet-stream'
 
         if not self.supports_binary:
@@ -22,8 +25,5 @@ class XHR_Polling(Polling):
             ('Content-Length', len(data)),
             ('Connection', 'close')
         ])
-
-        if 'socket' not in self.poll_handle.__dict__:
-            return
 
         self.poll_handle.write(data)

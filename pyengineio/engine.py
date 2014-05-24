@@ -166,22 +166,19 @@ class Engine(Emitter):
 
         log.debug('handshaking client "%s"', sid)
 
-        try:
-            transport = self.get_transport(query)(handle)
+        transport = self.get_transport(query)(handle, query)
 
-            # if transport_name == 'polling':
-            #     transport.max_http_buffer_size = self.max_http_buffer_size
+        # if transport_name == 'polling':
+        #     transport.max_http_buffer_size = self.max_http_buffer_size
 
-            transport.supports_binary = 'b64' not in query
-        except Exception, ex:
-            raise ex
+        transport.supports_binary = 'b64' not in query
 
         socket = Socket(self, sid, transport)
 
         # if self.cookie:
         #     handler.headers['Set-Cookie'] = self.cookie + '=' + sid
 
-        transport.on_request(handle)
+        transport.on_request(handle, query)
 
         self.clients[sid] = socket
         self.clients_count += 1
@@ -240,7 +237,7 @@ class Engine(Emitter):
 
         # Upgrade transport
         log.debug('upgrading existing transport')
-        transport = transport(handle)
+        transport = transport(handle, query)
 
         # Set binary mode
         if query.get('b64'):
@@ -251,7 +248,7 @@ class Engine(Emitter):
         # Start upgrade
         self.clients[sid].maybe_upgrade(transport)
 
-        transport.on_request(handle, method)
+        transport.on_request(handle, query, method)
 
     @staticmethod
     def get_transport_name(query):

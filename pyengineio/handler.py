@@ -2,6 +2,7 @@ from gevent.pywsgi import WSGIHandler
 from geventwebsocket.handler import WebSocketHandler
 import logging
 import time
+import traceback
 import urlparse
 
 log = logging.getLogger(__name__)
@@ -48,7 +49,8 @@ class Handler(WSGIHandler):
 
             return self.engine.handle_request(self, query)
         except Exception, ex:
-            log.error(ex)
+            log.error('%s - %s' % (ex, traceback.format_exc()))
+            raise ex
 
     def handle_websocket(self, query):
         # In case this is WebSocket request, switch to the WebSocketHandler

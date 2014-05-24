@@ -10,13 +10,13 @@ class Polling(Transport):
     name = 'polling'
     upgrades_to = ['websocket', 'flashsocket']
 
-    def __init__(self, handle):
-        super(Polling, self).__init__(handle)
+    def __init__(self, handle, query):
+        super(Polling, self).__init__(handle, query)
 
         self.poll_handle = None
         self.data_handle = None
 
-    def on_request(self, handle, method=None):
+    def on_request(self, handle, query, method=None):
         if method is None:
             method = handle.environ.get('REQUEST_METHOD')
 
