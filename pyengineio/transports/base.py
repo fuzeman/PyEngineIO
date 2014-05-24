@@ -36,6 +36,10 @@ class Transport(Emitter):
 
     def close(self, callback=None):
         """Closes the transport."""
+        self.ready_state = 'closing'
+        self.do_close(callback)
+
+    def do_close(self, callback=None):
         raise NotImplementedError()
 
     def on_error(self, message, description=None):

@@ -44,6 +44,8 @@ class Polling(Transport):
         self.poll_lock = Event()
 
         self.writable = True
+        self.ready_state = 'open'
+
         self.emit('drain')
 
         # if we're still writable but had a pending close, trigger an empty send

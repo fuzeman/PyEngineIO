@@ -21,6 +21,7 @@ class WebSocket(Transport):
         self.socket.current_app.on_close = lambda reason, *args: self.on_close(reason)
 
         self.writable = True
+        self.ready_state = 'open'
 
         self.receive_job = gevent.spawn(self.receive)
 
@@ -57,3 +58,11 @@ class WebSocket(Transport):
 
         self.writable = True
         self.emit('drain')
+
+    def do_close(self, callback=None):
+        log.debug('closing')
+
+        self.socket.close()
+
+        if callback:
+            callback()

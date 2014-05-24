@@ -139,7 +139,14 @@ class Socket(Emitter):
             self.transport.name, transport.name
         )
 
-        # TODO upgrade timeout
+        def upgrade_timeout():
+            log.debug('client did not complete upgrade - closing transport')
+
+            if transport.ready_state == 'open':
+                transport.close()
+
+        upgrade_timer = Timer(self.engine.upgrade_timeout / 1000, upgrade_timeout)
+        upgrade_timer.start()
 
         def polling_close():
             if self.transport.name != 'polling' or not self.transport.writable:
@@ -168,7 +175,7 @@ class Socket(Emitter):
                 self.set_ping_timeout()
                 self.flush()
 
-                # TODO clearTimeout(self.upgradeTimeoutTimer);
+                upgrade_timer.cancel()
                 transport.off('packet', on_packet)
             else:
                 transport.close()

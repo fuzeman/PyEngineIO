@@ -31,6 +31,8 @@ class Engine(Emitter):
         self.ping_timeout = options.get('ping_timeout', 60000)
         self.ping_interval = options.get('ping_interval', 25000)
 
+        self.upgrade_timeout = options.get('upgrade_timeout', 10000)
+
         self.allow_upgrades = options.get('allow_upgrades', True)
         self.allow_request = options.get('allow_request')
 
