@@ -1,0 +1,7 @@
+{
+    "name": "pyengineio-examples",
+    "version": "0.0.1",
+    "dependencies": {
+        "engine.io-client": "1.2.0"
+    }
+}

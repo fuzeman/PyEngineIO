@@ -1,6 +1,6 @@
 from pyengineio import Engine, Server
 
-from flask import Flask
+from flask import Flask, render_template
 import logging
 import time
 
@@ -12,7 +12,7 @@ eio = Engine()
 
 @app.route('/')
 def index():
-    return 'index'
+    return render_template('index.html')
 
 
 @eio.on('connection')

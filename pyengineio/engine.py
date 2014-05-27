@@ -31,6 +31,8 @@ class Engine(Emitter):
         self.ping_timeout = options.get('ping_timeout', 60000)
         self.ping_interval = options.get('ping_interval', 25000)
 
+        self.upgrade_timeout = options.get('upgrade_timeout', 10000)
+
         self.allow_upgrades = options.get('allow_upgrades', True)
         self.allow_request = options.get('allow_request')
 
@@ -127,6 +129,8 @@ class Engine(Emitter):
         log.debug('setting new request for existing client')
         self.clients[sid].transport.on_request(handle, method)
 
+        handle.log_request()
+
     @staticmethod
     def send_error(handle, code):
         """Returns an error for an HTTP request
@@ -137,6 +141,10 @@ class Engine(Emitter):
         :param code: Error code
         :type code: int
         """
+        if handle is None:
+            log.warn('invalid handle')
+            return
+
         handle.start_response('400 Bad Request', [
             ('Content-Type', 'application/json'),
             ('Connection', 'close')
@@ -160,28 +168,25 @@ class Engine(Emitter):
 
         log.debug('handshaking client "%s"', sid)
 
-        try:
-            transport = self.get_transport(query)(handle)
+        transport = self.get_transport(query)(handle, query)
 
-            # if transport_name == 'polling':
-            #     transport.max_http_buffer_size = self.max_http_buffer_size
+        # if transport_name == 'polling':
+        #     transport.max_http_buffer_size = self.max_http_buffer_size
 
-            transport.supports_binary = 'b64' not in query
-        except Exception, ex:
-            raise ex
+        transport.supports_binary = 'b64' not in query
 
         socket = Socket(self, sid, transport)
 
         # if self.cookie:
         #     handler.headers['Set-Cookie'] = self.cookie + '=' + sid
 
-        transport.on_request(handle)
+        transport.on_request(handle, query)
 
         self.clients[sid] = socket
         self.clients_count += 1
 
         @socket.once('close')
-        def on_close():
+        def on_close(reason, description=None):
             del self.clients[sid]
             self.clients_count -= 1
 
@@ -204,7 +209,7 @@ class Engine(Emitter):
         success, error = self.verify(handle, method, query, True)
 
         if not success:
-            # TODO socket.end();
+            self.send_error(handle, error)
             return self
 
         # Handle upgrade request
@@ -212,7 +217,7 @@ class Engine(Emitter):
 
         if not transport.supports_upgrades:
             log.debug('transport doesnt support upgrading')
-            # TODO socket.close()
+            self.send_error(handle, Errors.UNSUPPORTED_UPGRADE)
             return
 
         sid = query.get('sid')
@@ -224,17 +229,16 @@ class Engine(Emitter):
         # Verify upgrade request
         if sid not in self.clients:
             log.debug('upgrade attempt for closed client')
-            # TODO socket.close();
             return
 
         if self.clients[sid].upgraded:
             log.debug('transport has already been upgraded')
-            # TODO socket.close();
+            self.send_error(handle, Errors.ALREADY_UPGRADED)
             return
 
         # Upgrade transport
         log.debug('upgrading existing transport')
-        transport = transport(handle)
+        transport = transport(handle, query)
 
         # Set binary mode
         if query.get('b64'):
@@ -245,7 +249,7 @@ class Engine(Emitter):
         # Start upgrade
         self.clients[sid].maybe_upgrade(transport)
 
-        transport.on_request(handle, method)
+        transport.on_request(handle, query, method)
 
     @staticmethod
     def get_transport_name(query):

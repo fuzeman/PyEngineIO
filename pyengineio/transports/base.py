@@ -9,7 +9,7 @@ class Transport(Emitter):
     supports_framing = False
     supports_upgrades = False
 
-    def __init__(self, handle):
+    def __init__(self, handle, query):
         """Transport constructor.
 
         :param handle: WSGI request handler
@@ -23,7 +23,7 @@ class Transport(Emitter):
 
         self.sid = None
 
-    def on_request(self, handle, method=None):
+    def on_request(self, handle, query, method=None):
         """Called with incoming HTTP request.
 
         :param handle: WSGI request handler
@@ -36,6 +36,10 @@ class Transport(Emitter):
 
     def close(self, callback=None):
         """Closes the transport."""
+        self.ready_state = 'closing'
+        self.do_close(callback)
+
+    def do_close(self, callback=None):
         raise NotImplementedError()
 
     def on_error(self, message, description=None):
@@ -70,6 +74,7 @@ class Transport(Emitter):
         """
         raise NotImplementedError()
 
-    def on_close(self):
+    def on_close(self, reason, description=None):
         """Called upon transport close."""
-        raise NotImplementedError()
+        self.ready_state = 'closed'
+        self.emit('close', reason, description)

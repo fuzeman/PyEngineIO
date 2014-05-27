@@ -2,6 +2,7 @@ from gevent.pywsgi import WSGIHandler
 from geventwebsocket.handler import WebSocketHandler
 import logging
 import time
+import traceback
 import urlparse
 
 log = logging.getLogger(__name__)
@@ -15,14 +16,11 @@ class Handler(WSGIHandler):
 
         self.engine = engine
 
-    def handle_one_response(self):
-        path = self.environ.get('PATH_INFO')
-
-        if path != self.engine.path:
-            return super(Handler, self).handle_one_response()
-
+    def initialize(self):
         # Setup
         self.time_start = time.time()
+
+        self.code = None
         self.status = None
         self.headers_sent = False
 
@@ -30,17 +28,29 @@ class Handler(WSGIHandler):
         self.response_use_chunked = False
         self.response_length = 0
 
-        # Parse query
-        query = dict(urlparse.parse_qsl(self.environ.get('QUERY_STRING'), keep_blank_values=True))
+    def handle_one_response(self):
+        try:
+            path = self.environ.get('PATH_INFO')
 
-        connection = self.headers.get('connection')
-        upgrade = self.headers.get('upgrade')
+            if path != self.engine.path:
+                return super(Handler, self).handle_one_response()
 
-        # Process websocket request
-        if connection == 'Upgrade' and upgrade == 'websocket':
-            return self.handle_websocket(query)
+            self.initialize()
 
-        return self.engine.handle_request(self, query)
+            # Parse query
+            query = dict(urlparse.parse_qsl(self.environ.get('QUERY_STRING'), keep_blank_values=True))
+
+            connection = self.headers.get('connection')
+            upgrade = self.headers.get('upgrade')
+
+            # Process websocket request
+            if connection == 'Upgrade' and upgrade == 'websocket':
+                return self.handle_websocket(query)
+
+            return self.engine.handle_request(self, query)
+        except Exception, ex:
+            log.error('%s - %s' % (ex, traceback.format_exc()))
+            raise ex
 
     def handle_websocket(self, query):
         # In case this is WebSocket request, switch to the WebSocketHandler

@@ -1,0 +1,20 @@
+<script src="../static/engine.io.js"></script>
+<script>
+    // eio = Socket
+    var socket = eio('http://localhost');
+    socket.on('open', function(){
+        socket.write('hello');
+
+        socket.on('message', function(message){
+            console.log('on_message ' + message)
+        });
+
+        socket.on('close', function(){
+            console.log('closed');
+        });
+
+        socket.on('error', function(message){
+            console.error(message);
+        });
+    });
+</script>

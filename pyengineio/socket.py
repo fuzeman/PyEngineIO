@@ -1,5 +1,6 @@
 from pyemitter import Emitter
 from threading import Timer
+import gevent
 import json
 import logging
 
@@ -65,6 +66,8 @@ class Socket(Emitter):
             log.debug('packet received with closed socket')
             return
 
+        log.debug('Received via "%s" transport - packet: %s', self.transport.name, packet)
+
         self.emit('packet', packet)
 
         # Reset ping timeout on any packet, incoming data is a good sign of
@@ -93,7 +96,7 @@ class Socket(Emitter):
             self.emit('message', data)
             return
 
-        raise NotImplementedError()
+        log.warn('Received unknown packet with type "%s"', p_type)
 
     def on_error(self, error):
         """Called upon transport error."""
@@ -137,7 +140,28 @@ class Socket(Emitter):
             self.transport.name, transport.name
         )
 
-        # TODO upgrade timeout
+        def upgrade_timeout():
+            log.debug('client did not complete upgrade - closing transport')
+
+            if transport.ready_state == 'open':
+                transport.close()
+
+        upgrade_timer = Timer(self.engine.upgrade_timeout / 1000, upgrade_timeout)
+        upgrade_timer.start()
+
+        def polling_close():
+            gevent.sleep(0.1)
+
+            if not self.transport.name.startswith('polling-'):
+                log.debug('not a polling transport')
+                return
+
+            if not self.transport.writable:
+                log.debug('transport already closed')
+                return
+
+            log.debug('writing a "noop" packet to polling transport for fast upgrade')
+            self.transport.send([{'type': 'noop'}])
 
         @transport.on('packet')
         def on_packet(packet):
@@ -145,9 +169,9 @@ class Socket(Emitter):
             p_data = packet.get('data')
 
             if p_type == 'ping' and p_data == 'probe':
+                log.debug('got probe packet - sending pong')
                 transport.send([{'type': 'pong', 'data': 'probe'}])
-                # TODO clearInterval(self.checkIntervalTimer);
-                # TODO self.checkIntervalTimer = setInterval(check, 100);
+                gevent.spawn(polling_close)
             elif p_type == 'upgrade' and self.ready_state == 'open':
                 log.debug('got upgrade packet - upgrading')
                 self.upgraded = True
@@ -160,9 +184,7 @@ class Socket(Emitter):
                 self.set_ping_timeout()
                 self.flush()
 
-                # TODO clearInterval(self.checkIntervalTimer);
-                # TODO self.checkIntervalTimer = null;
-                # TODO clearTimeout(self.upgradeTimeoutTimer);
+                upgrade_timer.cancel()
                 transport.off('packet', on_packet)
             else:
                 transport.close()
@@ -174,14 +196,20 @@ class Socket(Emitter):
         self.ping_timeout_timer.cancel()
         self.ping_timeout_timer = None
 
-        # TODO clearTimeout(this.pingIntervalTimer); ?
-
     def on_close(self, reason, description=None):
         """Called upon transport considered closed."""
         if self.ready_state == 'closed':
             return
 
-        # TODO properly cleanup and close socket
+        self.clear_transport()
+
+        # reset buffers
+        self.write_buffer = []
+        self.write_callbacks = []
+        self.response_callbacks = []
+
+        self.ready_state = 'closed'
+        self.emit('close', reason, description)
 
     def setup_send_callback(self):
         """Setup and manage send callback"""
@@ -216,8 +244,6 @@ class Socket(Emitter):
         """
         if self.ready_state == 'closing':
             return
-
-        log.debug('sending packet "%s" (%s)', type, data)
 
         packet = {'type': type}
 
@@ -257,6 +283,8 @@ class Socket(Emitter):
             self.write_callbacks.extend(self.write_callbacks)
 
         self.write_callbacks = []
+
+        log.debug('Sending via "%s" transport - packets: %s', self.transport.name, wbuf)
         self.transport.send(wbuf)
 
         self.emit('drain')
