@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='PyEngineIO',
-    version='1.2.0-beta',
+    version='1.2.1-beta',
     url='http://github.com/fuzeman/PyEngineIO/',
 
     author='Dean Gardiner',
