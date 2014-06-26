@@ -14,10 +14,10 @@ class WebSocket(Transport):
     supports_framing = True
     supports_upgrades = True
 
-    def __init__(self, handle, query):
-        super(WebSocket, self).__init__(handle, query)
+    def __init__(self, request):
+        super(WebSocket, self).__init__(request)
 
-        self.socket = handle.environ.get('wsgi.websocket')
+        self.socket = request.handle.environ.get('wsgi.websocket')
         self.socket.current_app.on_close = lambda reason, *args: self.on_close(reason)
 
         self.writable = True
@@ -25,7 +25,7 @@ class WebSocket(Transport):
 
         self.receive_job = gevent.spawn(self.receive)
 
-    def on_request(self, handle, query, method=None):
+    def on_request(self, request):
         gevent.joinall([self.receive_job])
 
     def receive(self):

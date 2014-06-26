@@ -8,7 +8,7 @@ log = logging.getLogger(__name__)
 
 
 class Socket(Emitter):
-    def __init__(self, engine, sid, transport):
+    def __init__(self, engine, sid, transport, request):
         """Socket constructor
 
         :param engine: Engine instance
@@ -22,7 +22,7 @@ class Socket(Emitter):
         """
         self.engine = engine
         self.sid = sid
-        self.transport = None
+        self.request = request
 
         self.upgraded = False
         self.ready_state = 'opening'
@@ -35,7 +35,9 @@ class Socket(Emitter):
         self.upgrade_timeout_timer = None
         self.ping_timeout_timer = None
 
+        self.transport = None
         self.set_transport(transport)
+
         self.on_open()
 
     def on_open(self):

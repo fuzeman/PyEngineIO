@@ -49,14 +49,11 @@ class Engine(Emitter):
 
         return self.transports[transport].upgrades_to or []
 
-    def verify(self, handle, method, query, upgrade):
+    def verify(self, request, upgrade):
         """Verifies a request.
 
-        :param method: HTTP request method
-        :type method: str
-
-        :param query: HTTP request query
-        :type query: dict
+        :param request: HTTP request
+        :type request: pyengineio.handler.Request
 
         :param upgrade: Is this an upgrade request?
         :type upgrade: bool
@@ -65,14 +62,14 @@ class Engine(Emitter):
         :rtype: bool
         """
         # transport check
-        transport = self.get_transport_name(query)
+        transport = self.get_transport_name(request.query)
 
         if transport not in self.transports:
             log.debug('unknown transport "%s"', transport)
             return False, Errors.UNKNOWN_TRANSPORT
 
         # sid check
-        sid = query.get('sid')
+        sid = request.query.get('sid')
 
         if sid is not None:
             if sid not in self.clients:
@@ -82,10 +79,10 @@ class Engine(Emitter):
                 log.debug('bad request: unexpected transport without upgrade')
                 return False, Errors.BAD_REQUEST
         else:
-            if method != 'GET':
+            if request.method != 'GET':
                 return False, Errors.BAD_HANDSHAKE_METHOD
 
-            if self.allow_request and not self.allow_request(handle, method, query, upgrade):
+            if self.allow_request and not self.allow_request(request, upgrade):
                 return False, Errors.REFUSED_HANDSHAKE
 
         return True, None
@@ -99,40 +96,35 @@ class Engine(Emitter):
 
         return self
 
-    def handle_request(self, handle, query):
+    def handle_request(self, request):
         """Handles a WSGI request
 
-        :param handle: WSGI request handler
-        :type handle: pyengineio.handler.Handler
-
-        :param query: HTTP request query
-        :type query: dict
+        :param request: HTTP request
+        :type request: pyengineio.handler.Request
         """
-        log.debug('handling request - query: %s', query)
-
-        method = handle.environ.get('REQUEST_METHOD')
+        log.debug('handling request - request: %s', request)
 
         # Verify request
-        success, error = self.verify(handle, method, query, False)
+        success, error = self.verify(request, False)
 
         if not success:
-            self.send_error(handle, error)
+            self.send_error(request, error)
             return self
 
         # Handle request
-        sid = query.get('sid')
+        sid = request.query.get('sid')
 
         if not sid:
             # Handshake new client
-            return self.handshake(handle, query)
+            return self.handshake(request)
 
         log.debug('setting new request for existing client')
-        self.clients[sid].transport.on_request(handle, method)
+        self.clients[sid].transport.on_request(request)
 
-        handle.log_request()
+        request.handle.log_request()
 
     @staticmethod
-    def send_error(handle, code):
+    def send_error(request, code):
         """Returns an error for an HTTP request
 
         :param handle: WSGI request handler
@@ -141,21 +133,21 @@ class Engine(Emitter):
         :param code: Error code
         :type code: int
         """
-        if handle is None:
+        if not request or not request.handle:
             log.warn('invalid handle')
             return
 
-        handle.start_response('400 Bad Request', [
+        request.handle.start_response('400 Bad Request', [
             ('Content-Type', 'application/json'),
             ('Connection', 'close')
         ])
 
-        handle.write(json.dumps({
+        request.handle.write(json.dumps({
             'code': code,
             'message': Errors.MESSAGES.get(code)
         }))
 
-    def handshake(self, handle, query):
+    def handshake(self, request):
         """Handshakes a new client.
 
         :param handle: WSGI request handler
@@ -168,19 +160,19 @@ class Engine(Emitter):
 
         log.debug('handshaking client "%s"', sid)
 
-        transport = self.get_transport(query)(handle, query)
+        transport = self.get_transport(request.query)(request)
 
         # if transport_name == 'polling':
         #     transport.max_http_buffer_size = self.max_http_buffer_size
 
-        transport.supports_binary = 'b64' not in query
+        transport.supports_binary = 'b64' not in request.query
 
-        socket = Socket(self, sid, transport)
+        socket = Socket(self, sid, transport, request)
 
         # if self.cookie:
         #     handler.headers['Set-Cookie'] = self.cookie + '=' + sid
 
-        transport.on_request(handle, query)
+        transport.on_request(request)
 
         self.clients[sid] = socket
         self.clients_count += 1
@@ -192,39 +184,34 @@ class Engine(Emitter):
 
         self.emit('connection', socket)
 
-    def handle_upgrade(self, handle, query):
+    def handle_upgrade(self, request):
         """Handles a client upgrade request
 
-        :param handle: WSGI request handler
-        :type handle: pyengineio.handler.Handler
-
-        :param query: HTTP request query
-        :type query: dict
+        :param request: HTTP Request
+        :type request: pyengineio.handler.Request
         """
-        log.debug('handling upgrade - query: %s', query)
-
-        method = handle.environ.get('REQUEST_METHOD')
+        log.debug('handling upgrade - request: %s', request)
 
         # Verify request
-        success, error = self.verify(handle, method, query, True)
+        success, error = self.verify(request, True)
 
         if not success:
-            self.send_error(handle, error)
+            self.send_error(request, error)
             return self
 
         # Handle upgrade request
-        transport = self.get_transport(query)
+        transport = self.get_transport(request.query)
 
         if not transport.supports_upgrades:
             log.debug('transport doesnt support upgrading')
-            self.send_error(handle, Errors.UNSUPPORTED_UPGRADE)
+            self.send_error(request, Errors.UNSUPPORTED_UPGRADE)
             return
 
-        sid = query.get('sid')
+        sid = request.query.get('sid')
 
         if not sid:
             # Handshake new client
-            return self.handshake(handle, query)
+            return self.handshake(request)
 
         # Verify upgrade request
         if sid not in self.clients:
@@ -233,15 +220,15 @@ class Engine(Emitter):
 
         if self.clients[sid].upgraded:
             log.debug('transport has already been upgraded')
-            self.send_error(handle, Errors.ALREADY_UPGRADED)
+            self.send_error(request, Errors.ALREADY_UPGRADED)
             return
 
         # Upgrade transport
         log.debug('upgrading existing transport')
-        transport = transport(handle, query)
+        transport = transport(request)
 
         # Set binary mode
-        if query.get('b64'):
+        if request.query.get('b64'):
             transport.supports_binary = False
         else:
             transport.supports_binary = True
@@ -249,7 +236,7 @@ class Engine(Emitter):
         # Start upgrade
         self.clients[sid].maybe_upgrade(transport)
 
-        transport.on_request(handle, query, method)
+        transport.on_request(request)
 
     @staticmethod
     def get_transport_name(query):

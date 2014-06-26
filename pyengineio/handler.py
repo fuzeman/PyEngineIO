@@ -37,22 +37,21 @@ class Handler(WSGIHandler):
 
             self.initialize()
 
-            # Parse query
-            query = dict(urlparse.parse_qsl(self.environ.get('QUERY_STRING'), keep_blank_values=True))
+            request = Request.build(self)
 
             connection = self.headers.get('connection')
             upgrade = self.headers.get('upgrade')
 
             # Process websocket request
             if connection == 'Upgrade' and upgrade == 'websocket':
-                return self.handle_websocket(query)
+                return self.handle_websocket(request)
 
-            return self.engine.handle_request(self, query)
+            return self.engine.handle_request(request)
         except Exception, ex:
             log.error('%s - %s' % (ex, traceback.format_exc()))
             raise ex
 
-    def handle_websocket(self, query):
+    def handle_websocket(self, request):
         # In case this is WebSocket request, switch to the WebSocketHandler
         # FIXME: fix this ugly class change
         old_class = self.__class__
@@ -67,4 +66,20 @@ class Handler(WSGIHandler):
         # incorrect class. Useful for debugging.
         self.__class__ = old_class
 
-        return self.engine.handle_upgrade(self, query)
+        return self.engine.handle_upgrade(request)
+
+
+class Request(object):
+    def __init__(self, handle):
+        self.handle = handle
+
+        self.method = None
+        self.query = None
+
+    @classmethod
+    def build(cls, handle):
+        o = Request(handle)
+        o.method = handle.environ.get('REQUEST_METHOD')
+        o.query = dict(urlparse.parse_qsl(handle.environ.get('QUERY_STRING'), keep_blank_values=True))
+
+        return o
