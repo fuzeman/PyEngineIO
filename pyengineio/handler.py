@@ -75,11 +75,14 @@ class Request(object):
 
         self.method = None
         self.query = None
+        self.headers = None
 
     @classmethod
     def build(cls, handle):
         o = Request(handle)
+
         o.method = handle.environ.get('REQUEST_METHOD')
         o.query = dict(urlparse.parse_qsl(handle.environ.get('QUERY_STRING'), keep_blank_values=True))
+        o.headers = handle.headers
 
         return o
