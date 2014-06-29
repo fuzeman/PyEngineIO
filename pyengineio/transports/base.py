@@ -9,11 +9,11 @@ class Transport(Emitter):
     supports_framing = False
     supports_upgrades = False
 
-    def __init__(self, handle, query):
+    def __init__(self, request):
         """Transport constructor.
 
-        :param handle: WSGI request handler
-        :type handle: pyengineio.handler.Handler
+        :param request: HTTP Request
+        :type request: pyengineio.handler.Request
         """
         self.ready_state = 'opening'
         self.should_close = None
@@ -23,14 +23,11 @@ class Transport(Emitter):
 
         self.sid = None
 
-    def on_request(self, handle, query, method=None):
+    def on_request(self, request):
         """Called with incoming HTTP request.
 
-        :param handle: WSGI request handler
-        :type handle: pyengineio.handler.Handler
-
-        :param method: HTTP request method
-        :type method: str
+        :param request: HTTP Request
+        :type request: pyengineio.handler.Request
         """
         raise NotImplementedError()
 

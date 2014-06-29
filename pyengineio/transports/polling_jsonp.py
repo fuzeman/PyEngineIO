@@ -11,10 +11,10 @@ log = logging.getLogger(__name__)
 class JSONP_Polling(Polling):
     name = 'polling-jsonp'
 
-    def __init__(self, handle, query):
-        super(JSONP_Polling, self).__init__(handle, query)
+    def __init__(self, request):
+        super(JSONP_Polling, self).__init__(request)
 
-        self.head = '___eio[' + re.sub(r'[^0-9]', '', query.get('j', '')) + ']('
+        self.head = '___eio[' + re.sub(r'[^0-9]', '', request.query.get('j', '')) + ']('
         self.foot = ');'
 
     def on_data(self, data):

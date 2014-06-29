@@ -2,7 +2,6 @@ from pyengineio import Engine, Server
 
 from flask import Flask, render_template
 import logging
-import time
 
 logging.basicConfig(level=logging.DEBUG)
 

@@ -12,26 +12,23 @@ class Polling(Transport):
     name = 'polling'
     upgrades_to = ['websocket', 'flashsocket']
 
-    def __init__(self, handle, query):
-        super(Polling, self).__init__(handle, query)
+    def __init__(self, request):
+        super(Polling, self).__init__(request)
 
         self.poll_handle = None
         self.poll_lock = None
 
         self.data_handle = None
 
-    def on_request(self, handle, query, method=None):
-        if method is None:
-            method = handle.environ.get('REQUEST_METHOD')
-
-        if method == 'GET':
-            self.on_poll_request(handle)
-        elif method == 'POST':
-            self.on_data_request(handle)
+    def on_request(self, request):
+        if request.method == 'GET':
+            self.on_poll_request(request)
+        elif request.method == 'POST':
+            self.on_data_request(request)
         else:
             log.warn('Unknown polling request')
 
-    def on_poll_request(self, handle):
+    def on_poll_request(self, request):
         if self.poll_handle:
             self.on_error('overlap from client')
 
@@ -40,7 +37,7 @@ class Polling(Transport):
             ])
             return
 
-        self.poll_handle = handle
+        self.poll_handle = request.handle
         self.poll_lock = Event()
 
         self.writable = True
@@ -56,7 +53,7 @@ class Polling(Transport):
         # Wait until we are ready to send something
         gevent.wait([self.poll_lock])
 
-    def on_data_request(self, handle):
+    def on_data_request(self, request):
         if self.data_handle:
             self.on_error('data request overlap from client')
 
@@ -65,16 +62,16 @@ class Polling(Transport):
             ])
             return
 
-        self.data_handle = handle
+        self.data_handle = request.handle
 
-        content_length = handle.headers['content-length']
+        content_length = request.handle.headers['content-length']
 
         # Read data from input stream
-        stream = handle.environ.get('wsgi.input')
+        stream = request.handle.environ.get('wsgi.input')
 
         data = stream.read(content_length)
 
-        if handle.headers['content-type'] == 'application/octet-stream':
+        if request.handle.headers['content-type'] == 'application/octet-stream':
             data = bytearray(data)
 
         # Write response
