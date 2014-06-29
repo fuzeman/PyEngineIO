@@ -7,6 +7,9 @@ import urlparse
 
 log = logging.getLogger(__name__)
 
+RE_DOUBLE_SLASHES = r"\\\\n"
+RE_SLASHES = r"(?<!\\)\\n"
+
 
 class JSONP_Polling(Polling):
     name = 'polling-jsonp'
@@ -24,7 +27,12 @@ class JSONP_Polling(Polling):
         if not data:
             return
 
-        super(JSONP_Polling, self).on_data(data.replace('\\n', '\n'))
+        # client will send already escaped newlines as \\\\n and newlines as \\n
+        # \\n must be replaced with \n and \\\\n with \\n
+        data = re.sub(RE_SLASHES, '\n', data)
+        data = re.sub(RE_DOUBLE_SLASHES, '\\n', data)
+
+        super(JSONP_Polling, self).on_data(data)
 
     def do_write(self, data):
         if self.poll_handle is None:
