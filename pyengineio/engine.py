@@ -127,8 +127,8 @@ class Engine(Emitter):
     def send_error(request, code):
         """Returns an error for an HTTP request
 
-        :param handle: WSGI request handler
-        :type handle: pyengineio.handler.Handler
+        :param request: HTTP Request
+        :type request: pyengineio.handler.Request
 
         :param code: Error code
         :type code: int
@@ -150,8 +150,8 @@ class Engine(Emitter):
     def handshake(self, request):
         """Handshakes a new client.
 
-        :param handle: WSGI request handler
-        :type handle: pyengineio.handler.Handler
+        :param request: HTTP Request
+        :type request: pyengineio.handler.Request
 
         :param query: HTTP request query
         :type query: dict
